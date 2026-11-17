@@ -1,24 +1,27 @@
-﻿using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+﻿using System.Text.Json;
 
 namespace eShopLegacy.Utilities
 {
+    /// <summary>
+    /// Was BinaryFormatter-based. BinaryFormatter is insecure and its implementation was removed in .NET 9,
+    /// so it now serializes JSON. Property names are kept as declared (PascalCase), matching the old API output.
+    /// </summary>
     public class Serializing
     {
-        public Stream SerializeBinary(object input)
+        private static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = null };
+
+        public Stream SerializeJson<T>(T input)
         {
             var stream = new MemoryStream();
-            var binaryFormatter = new BinaryFormatter();
-            binaryFormatter.Serialize(stream, input);
+            JsonSerializer.Serialize(stream, input, Options);
             stream.Seek(0, SeekOrigin.Begin);
             return stream;
         }
 
-        public object DeserializeBinary(Stream stream)
+        public T DeserializeJson<T>(Stream stream)
         {
-            var binaryFormatter = new BinaryFormatter();
             stream.Seek(0, SeekOrigin.Begin);
-            return binaryFormatter.Deserialize(stream);
+            return JsonSerializer.Deserialize<T>(stream, Options);
         }
     }
 }

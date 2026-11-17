@@ -1,52 +1,38 @@
-﻿using eShopLegacy.Utilities;
+﻿using eShopLegacyMVC.Models;
 using eShopLegacyMVC.Services;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Runtime.Remoting.Messaging;
-using System.Web.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace eShopLegacyMVC.Controllers.WebApi
 {
-    public class BrandsController : ApiController
+    // Was a Web API 2 ApiController on the convention route api/{controller}/{id}.
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BrandsController(ICatalogService service) : ControllerBase
     {
-        private ICatalogService _service;
+        // GET api/brands
+        [HttpGet]
+        public IEnumerable<CatalogBrand> Get() => service.GetCatalogBrands();
 
-        public BrandsController(ICatalogService service)
+        // GET api/brands/5
+        [HttpGet("{id:int}")]
+        public ActionResult<CatalogBrand> Get(int id)
         {
-            _service = service;
+            var brand = service.GetCatalogBrands().FirstOrDefault(x => x.Id == id);
+            return brand == null ? NotFound() : brand;
         }
 
-        // GET api/<controller>
-        public IEnumerable<Models.CatalogBrand> Get()
+        // DELETE api/brands/5
+        [HttpDelete("{id:int}")]
+        public IActionResult Delete(int id)
         {
-            var brands = _service.GetCatalogBrands();
-            return brands;
-        }
-
-        // GET api/<controller>/5
-        public IHttpActionResult Get(int id)
-        {
-            var brands = _service.GetCatalogBrands();
-            var brand = brands.FirstOrDefault(x => x.Id == id);
-            if (brand == null) return NotFound();
-
-            return Ok(brand);
-        }
-
-        [HttpDelete]
-        // DELETE api/<controller>/5
-        public IHttpActionResult Delete(int id)
-        {
-            var brandToDelete = _service.GetCatalogBrands().FirstOrDefault(x => x.Id == id);
+            var brandToDelete = service.GetCatalogBrands().FirstOrDefault(x => x.Id == id);
             if (brandToDelete == null)
             {
-                return ResponseMessage(new HttpResponseMessage(HttpStatusCode.NotFound));
+                return NotFound();
             }
 
-            // demo only - don't actually delete
-            return ResponseMessage(new HttpResponseMessage(HttpStatusCode.OK));
+            // demo only - don't actually delete (unchanged from the original)
+            return Ok();
         }
     }
 }

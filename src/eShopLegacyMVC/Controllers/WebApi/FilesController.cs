@@ -1,41 +1,27 @@
 ﻿using eShopLegacy.Utilities;
 using eShopLegacyMVC.Services;
-using System;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Web.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace eShopLegacyMVC.Controllers.WebApi
 {
-    public class FilesController : ApiController
+    [ApiController]
+    [Route("api/[controller]")]
+    public class FilesController(ICatalogService service) : ControllerBase
     {
-        private ICatalogService _service;
-
-        public FilesController(ICatalogService service)
+        // GET api/files
+        // BREAKING (flagged in MIGRATION-REPORT.md): the legacy endpoint streamed a BinaryFormatter payload (served as text/html).
+        // BinaryFormatter is unsafe and removed in .NET 9+, so the same data is now returned as a JSON file.
+        [HttpGet]
+        public IActionResult Get()
         {
-            _service = service;
+            var brands = service.GetCatalogBrands()
+                .Select(b => new BrandDTO { Id = b.Id, Brand = b.Brand })
+                .ToList();
+
+            var stream = new Serializing().SerializeJson(brands);
+            return File(stream, "application/json", "brands.json");
         }
 
-        // GET api/<controller>
-        public HttpResponseMessage Get()
-        {
-            var brands = _service.GetCatalogBrands()
-                .Select(b => new BrandDTO
-                {
-                    Id = b.Id,
-                    Brand = b.Brand
-                }).ToList();
-            var serializer = new Serializing();
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StreamContent(serializer.SerializeBinary(brands))
-            };
-
-            return response;
-        }
-
-        [Serializable]
         public class BrandDTO
         {
             public int Id { get; set; }

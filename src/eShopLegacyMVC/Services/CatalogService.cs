@@ -1,23 +1,11 @@
 ﻿using eShopLegacyMVC.Models;
-using System.Collections.Generic;
-using System.Data.Entity;
-using System.Linq;
 using eShopLegacyMVC.ViewModel;
+using Microsoft.EntityFrameworkCore;
 
 namespace eShopLegacyMVC.Services
 {
-
-    public class CatalogService : ICatalogService
+    public class CatalogService(CatalogDBContext db) : ICatalogService
     {
-        private CatalogDBContext db;
-        private CatalogItemHiLoGenerator indexGenerator;
-
-        public CatalogService(CatalogDBContext db, CatalogItemHiLoGenerator indexGenerator)
-        {
-            this.db = db;
-            this.indexGenerator = indexGenerator;
-        }
-
         public PaginatedItemsViewModel<CatalogItem> GetCatalogItemsPaginated(int pageSize, int pageIndex)
         {
             var totalItems = db.CatalogItems.LongCount();
@@ -30,27 +18,21 @@ namespace eShopLegacyMVC.Services
                 .Take(pageSize)
                 .ToList();
 
-            return new PaginatedItemsViewModel<CatalogItem>(
-                pageIndex, pageSize, totalItems, itemsOnPage);
+            return new PaginatedItemsViewModel<CatalogItem>(pageIndex, pageSize, totalItems, itemsOnPage);
         }
 
         public CatalogItem FindCatalogItem(int id)
         {
             return db.CatalogItems.Include(c => c.CatalogBrand).Include(c => c.CatalogType).FirstOrDefault(ci => ci.Id == id);
         }
-        public IEnumerable<CatalogType> GetCatalogTypes()
-        {
-            return db.CatalogTypes;
-        }
 
-        public IEnumerable<CatalogBrand> GetCatalogBrands()
-        {
-            return db.CatalogBrands;
-        }
+        public IEnumerable<CatalogType> GetCatalogTypes() => db.CatalogTypes.AsNoTracking().ToList();
+
+        public IEnumerable<CatalogBrand> GetCatalogBrands() => db.CatalogBrands.AsNoTracking().ToList();
 
         public void CreateCatalogItem(CatalogItem catalogItem)
         {
-            catalogItem.Id = indexGenerator.GetNextSequenceValue(db);
+            catalogItem.Id = 0; // HiLo value generator assigns the id (replaces CatalogItemHiLoGenerator)
             db.CatalogItems.Add(catalogItem);
             db.SaveChanges();
         }
@@ -69,7 +51,7 @@ namespace eShopLegacyMVC.Services
 
         public void Dispose()
         {
-            db.Dispose();
+            // DbContext lifetime is owned by the DI container now.
         }
     }
 }

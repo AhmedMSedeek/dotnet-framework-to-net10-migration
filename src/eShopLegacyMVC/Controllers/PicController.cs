@@ -1,91 +1,51 @@
 ﻿using eShopLegacyMVC.Services;
-using log4net;
-using System.IO;
-using System.Net;
-using System.Web.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
 namespace eShopLegacyMVC.Controllers
 {
-    public class PicController : Controller
+    public class PicController(ICatalogService service, IWebHostEnvironment env, ILogger<PicController> log) : Controller
     {
-        private static readonly ILog _log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-
         public const string GetPicRouteName = "GetPicRouteTemplate";
 
-        private ICatalogService service;
-
-        public PicController(ICatalogService service)
-        {
-            this.service = service;
-        }
-
-        // GET: Pic/5.png
+        // GET: items/5/pic
         [HttpGet]
         [Route("items/{catalogItemId:int}/pic", Name = GetPicRouteName)]
-        public ActionResult Index(int catalogItemId)
+        public IActionResult Index(int catalogItemId)
         {
-            _log.Info($"Now loading... /items/Index?{catalogItemId}/pic");
+            log.LogInformation("Now loading... /items/Index?{CatalogItemId}/pic", catalogItemId);
 
             if (catalogItemId <= 0)
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                return BadRequest();
             }
 
             var item = service.FindCatalogItem(catalogItemId);
-
-            if (item != null)
+            if (item == null)
             {
-                var webRoot = Server.MapPath("~/Pics");
-                var path = Path.Combine(webRoot, item.PictureFileName);
-
-                string imageFileExtension = Path.GetExtension(item.PictureFileName);
-                string mimetype = GetImageMimeTypeFromImageFileExtension(imageFileExtension);
-
-                var buffer = System.IO.File.ReadAllBytes(path);
-
-                return File(buffer, mimetype);
+                return NotFound();
             }
 
-            return HttpNotFound();
+            // Was Server.MapPath("~/Pics"). GetFileName blocks path traversal through a crafted PictureFileName.
+            var path = Path.Combine(env.WebRootPath, "Pics", Path.GetFileName(item.PictureFileName));
+            if (!System.IO.File.Exists(path))
+            {
+                return NotFound();
+            }
+
+            return PhysicalFile(path, GetImageMimeTypeFromImageFileExtension(Path.GetExtension(path)));
         }
 
-        private string GetImageMimeTypeFromImageFileExtension(string extension)
+        private static string GetImageMimeTypeFromImageFileExtension(string extension) => extension switch
         {
-            string mimetype;
-
-            switch (extension)
-            {
-                case ".png":
-                    mimetype = "image/png";
-                    break;
-                case ".gif":
-                    mimetype = "image/gif";
-                    break;
-                case ".jpg":
-                case ".jpeg":
-                    mimetype = "image/jpeg";
-                    break;
-                case ".bmp":
-                    mimetype = "image/bmp";
-                    break;
-                case ".tiff":
-                    mimetype = "image/tiff";
-                    break;
-                case ".wmf":
-                    mimetype = "image/wmf";
-                    break;
-                case ".jp2":
-                    mimetype = "image/jp2";
-                    break;
-                case ".svg":
-                    mimetype = "image/svg+xml";
-                    break;
-                default:
-                    mimetype = "application/octet-stream";
-                    break;
-            }
-
-            return mimetype;
-        }
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".bmp" => "image/bmp",
+            ".tiff" => "image/tiff",
+            ".wmf" => "image/wmf",
+            ".jp2" => "image/jp2",
+            ".svg" => "image/svg+xml",
+            _ => "application/octet-stream",
+        };
     }
 }
